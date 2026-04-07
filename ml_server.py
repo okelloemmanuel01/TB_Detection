@@ -8,18 +8,37 @@ import tensorflow as tf
 
 app = FastAPI()
 
-MODEL_PATH = os.path.join(
-    os.path.dirname(__file__),
-    "storage/app/private/models/active_model.h5"
-)
+MODEL_PATH = "/tmp/active_model.h5"
+MODEL_URL = os.environ.get('MODEL_URL', '')
 
 model = None
 
 def load_model():
     global model
     if model is None:
+        if not os.path.exists(MODEL_PATH):
+            if not MODEL_URL:
+                raise FileNotFoundError("MODEL_URL environment variable not set.")
+            print(f"Downloading model from {MODEL_URL}...")
+            _download_gdrive(MODEL_URL, MODEL_PATH)
+            print("Model downloaded.")
         model = tf.keras.models.load_model(MODEL_PATH)
     return model
+
+def _download_gdrive(url, dest):
+    import requests
+    session = requests.Session()
+    response = session.get(url, stream=True)
+    # Handle Google Drive large file warning
+    for key, value in response.cookies.items():
+        if key.startswith('download_warning'):
+            url = url + '&confirm=' + value
+            response = session.get(url, stream=True)
+            break
+    with open(dest, 'wb') as f:
+        for chunk in response.iter_content(32768):
+            if chunk:
+                f.write(chunk)
 
 def get_gradcam(m, img_array):
     last_conv = None
@@ -54,6 +73,11 @@ def get_gradcam(m, img_array):
 
 @app.post("/predict")
 async def predict(file: UploadFile = File(...)):
+    try:
+        m = load_model()
+    except FileNotFoundError as e:
+        return JSONResponse({"error": str(e)}, status_code=503)
+
     contents = await file.read()
     nparr = np.frombuffer(contents, np.uint8)
     image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
@@ -62,7 +86,6 @@ async def predict(file: UploadFile = File(...)):
     img = original / 255.0
     img_array = np.expand_dims(img, axis=0).astype(np.float32)
 
-    m = load_model()
     prediction = float(m.predict(img_array, verbose=0)[0][0])
 
     heatmap_b64 = None
@@ -78,4 +101,5 @@ async def predict(file: UploadFile = File(...)):
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    model_exists = os.path.exists(MODEL_PATH)
+    return {"status": "ok", "model_loaded": model_exists, "model_path": MODEL_PATH}
