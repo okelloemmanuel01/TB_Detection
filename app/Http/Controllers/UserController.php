@@ -38,11 +38,12 @@ class UserController extends Controller
 
         // Call Python ML API
         try {
-            $response = Http::timeout(60)->attach(
+            $mlUrl = env('ML_API_URL', 'http://localhost:8002');
+            $response = Http::timeout(120)->attach(
                 'file',
                 file_get_contents($request->file('xray')->getRealPath()),
                 'xray.jpg'
-            )->post(config('app.ml_api_url', 'http://localhost:8002') . '/predict');
+            )->post($mlUrl . '/predict');
 
             if ($response->failed()) {
                 return back()->with('error', 'Analysis failed. Please try again.');
