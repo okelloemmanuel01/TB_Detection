@@ -39,18 +39,22 @@ class AdminController extends Controller
             return redirect()->route('admin.models')->withErrors(['model_file' => 'File must be one of: h5, pkl, pt, pth, keras'])->withInput();
         }
 
-        $filename = $request->file('model_file')->store('models', 'local');
+        try {
+            $filename = $request->file('model_file')->store('models', 'local');
 
-        TbModel::create([
-            'name' => $request->name,
-            'filename' => $filename,
-            'version' => $request->version,
-            'description' => $request->description,
-            'is_active' => false,
-            'uploaded_by' => auth()->id(),
-        ]);
+            TbModel::create([
+                'name' => $request->name,
+                'filename' => $filename,
+                'version' => $request->version,
+                'description' => $request->description,
+                'is_active' => false,
+                'uploaded_by' => auth()->id(),
+            ]);
 
-        return redirect()->route('admin.models')->with('success', 'Model uploaded successfully.');
+            return redirect()->route('admin.models')->with('success', 'Model uploaded successfully.');
+        } catch (\Exception $e) {
+            return redirect()->route('admin.models')->with('error', 'Upload failed: ' . $e->getMessage());
+        }
     }
 
     public function activateModel(TbModel $model)
