@@ -46,6 +46,12 @@
                 <li>A Grad-CAM heatmap highlights areas of concern</li>
                 <li>Results are saved to your history</li>
             </ol>
+            @if(!config('app.ml_api_url'))
+            <div class="alert alert-warning py-2 mt-2 mb-0 small">
+                <i class="bi bi-exclamation-triangle me-1"></i>
+                <strong>Note:</strong> The ML analysis server must be running locally for scans to work.
+            </div>
+            @endif
         </div>
     </div>
 </div>
