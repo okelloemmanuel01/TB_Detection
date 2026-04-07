@@ -1,1 +1,1 @@
-web: php artisan migrate --force && php artisan db:seed --force && php artisan serve --host=0.0.0.0 --port=$PORT
+web: php -c php.ini artisan migrate --force && php -c php.ini artisan serve --host=0.0.0.0 --port=$PORT
