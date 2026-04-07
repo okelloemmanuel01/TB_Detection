@@ -36,7 +36,7 @@ class AdminController extends Controller
         $allowed = ['h5', 'pkl', 'pt', 'pth', 'keras'];
         $ext = strtolower($request->file('model_file')->getClientOriginalExtension());
         if (!in_array($ext, $allowed)) {
-            return back()->withErrors(['model_file' => 'File must be one of: h5, pkl, pt, pth, keras'])->withInput();
+            return redirect()->route('admin.models')->withErrors(['model_file' => 'File must be one of: h5, pkl, pt, pth, keras'])->withInput();
         }
 
         $filename = $request->file('model_file')->store('models', 'local');
@@ -50,7 +50,7 @@ class AdminController extends Controller
             'uploaded_by' => auth()->id(),
         ]);
 
-        return back()->with('success', 'Model uploaded successfully.');
+        return redirect()->route('admin.models')->with('success', 'Model uploaded successfully.');
     }
 
     public function activateModel(TbModel $model)
