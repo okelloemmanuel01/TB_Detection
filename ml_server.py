@@ -21,24 +21,41 @@ def load_model():
                 raise FileNotFoundError("MODEL_URL environment variable not set.")
             print(f"Downloading model from {MODEL_URL}...")
             _download_gdrive(MODEL_URL, MODEL_PATH)
-            print("Model downloaded.")
+            print(f"Model downloaded. Size: {os.path.getsize(MODEL_PATH)} bytes")
         model = tf.keras.models.load_model(MODEL_PATH)
+        print("Model loaded successfully.")
     return model
 
 def _download_gdrive(url, dest):
     import requests
     session = requests.Session()
+    # First request to get confirmation token
     response = session.get(url, stream=True)
-    # Handle Google Drive large file warning
+    token = None
     for key, value in response.cookies.items():
         if key.startswith('download_warning'):
-            url = url + '&confirm=' + value
-            response = session.get(url, stream=True)
+            token = value
             break
+    # If confirmation needed, re-request with token
+    if token:
+        response = session.get(url + '&confirm=' + token, stream=True)
+    # Check if we got HTML instead of binary (means download failed)
+    content_type = response.headers.get('Content-Type', '')
+    if 'text/html' in content_type:
+        # Try gdown-style URL
+        file_id = url.split('id=')[-1]
+        response = session.get(
+            f'https://drive.usercontent.google.com/download?id={file_id}&export=download&confirm=t',
+            stream=True
+        )
     with open(dest, 'wb') as f:
         for chunk in response.iter_content(32768):
             if chunk:
                 f.write(chunk)
+    # Verify it's a valid h5 file
+    if os.path.getsize(dest) < 1000:
+        os.remove(dest)
+        raise ValueError('Downloaded file is too small — likely an HTML error page, not the model.')
 
 def get_gradcam(m, img_array):
     last_conv = None
